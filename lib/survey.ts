@@ -34,9 +34,4 @@ export type SurveyPayload = {
   gift_father: string;
   occasions: string[];
   additional_notes: string;
-  shared_location?: {
-    latitude: number;
-    longitude: number;
-    accuracy?: number;
-  };
 };

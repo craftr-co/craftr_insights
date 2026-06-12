@@ -1,11 +1,5 @@
 import nodemailer from "nodemailer";
-import {
-  formatApproxLocation,
-  formatSharedLocation,
-  sharedLocationMapsUrl,
-  type ApproxLocation,
-  type SharedLocation,
-} from "@/lib/location";
+import { formatApproxLocation, type ApproxLocation } from "@/lib/location";
 
 function getMailConfig() {
   const user = process.env.GMAIL_USER?.trim();
@@ -61,8 +55,6 @@ type SubmissionEmail = {
   email: string;
   imageUrl?: string | null;
   phone: string;
-  sharedLocation?: SharedLocation | null;
-  approxLocation?: ApproxLocation | null;
   interests: string[];
   giftHusband: string;
   giftBestFriend: string;
@@ -89,10 +81,6 @@ function buildText(data: SubmissionEmail) {
     `Email: ${data.email} (verified via Google)`,
     ...(data.imageUrl ? [`Photo: ${data.imageUrl}`] : []),
     `Phone: ${data.phone}`,
-    `Approx. location (IP): ${formatApproxLocation(data.approxLocation)}`,
-    ...(data.sharedLocation
-      ? [`Shared location: ${formatSharedLocation(data.sharedLocation)}`, `Map: ${sharedLocationMapsUrl(data.sharedLocation)}`]
-      : ["Shared location: Not provided"]),
     "",
     "— Part 2: Interests —",
     formatList(data.interests),
@@ -127,13 +115,6 @@ function buildHtml(data: SubmissionEmail, profileHtml: string) {
     ${row("Name", data.name)}
     ${row("Email", `${data.email} <span style="color:#16a34a;font-size:12px">✓ Google verified</span>`)}
     ${row("Phone", data.phone)}
-    ${row("Approx. location (IP)", formatApproxLocation(data.approxLocation))}
-    ${row(
-      "Shared location",
-      data.sharedLocation
-        ? `<a href="${sharedLocationMapsUrl(data.sharedLocation)}" style="color:#FF6B35">${formatSharedLocation(data.sharedLocation)}</a> · <a href="${sharedLocationMapsUrl(data.sharedLocation)}" style="color:#FF6B35">View on map</a>`
-        : "Not provided"
-    )}
     ${row("Interests", data.interests.join(", ") || "—")}
     ${row("Gift — husband", data.giftHusband || "—")}
     ${row("Gift — best friend", data.giftBestFriend || "—")}
