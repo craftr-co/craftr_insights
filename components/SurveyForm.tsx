@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, MapPin } from "lucide-react";
+import type { SharedLocation } from "@/lib/location";
 import { cn } from "@/lib/utils";
 import { playfair } from "@/lib/fonts";
 import {
@@ -57,9 +58,43 @@ export function SurveyForm({ name, email, avatarUrl }: Props) {
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sharedLocation, setSharedLocation] = useState<SharedLocation | null>(null);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
   function toggleItem(list: string[], item: string, setter: (v: string[]) => void) {
     setter(list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
+  }
+
+  function shareLocation() {
+    setLocationMessage(null);
+
+    if (!navigator.geolocation) {
+      setLocationMessage("Location is not supported on this device.");
+      return;
+    }
+
+    setLocationBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setSharedLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        });
+        setLocationMessage("Location shared. Thank you — this helps us serve you better.");
+        setLocationBusy(false);
+      },
+      (geoError) => {
+        setLocationBusy(false);
+        if (geoError.code === geoError.PERMISSION_DENIED) {
+          setLocationMessage("Location access was denied. You can still submit the survey.");
+          return;
+        }
+        setLocationMessage("Could not get your location. You can still submit the survey.");
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   }
 
   async function submit(e: React.FormEvent) {
@@ -92,6 +127,7 @@ export function SurveyForm({ name, email, avatarUrl }: Props) {
       gift_father: giftFather.trim(),
       occasions,
       additional_notes: additionalNotes.trim(),
+      ...(sharedLocation ? { shared_location: sharedLocation } : {}),
     };
 
     setBusy(true);
@@ -181,6 +217,51 @@ export function SurveyForm({ name, email, avatarUrl }: Props) {
               onChange={(e) => setPhone(e.target.value)}
               className="mt-2 w-full rounded-xl border border-craftr-border bg-craftr-bg px-4 py-3 text-sm text-craftr-text placeholder:text-craftr-muted focus:border-craftr-primary focus:outline-none focus:ring-1 focus:ring-craftr-primary"
             />
+          </div>
+
+          <div className="mt-5">
+            <p className="text-sm font-medium text-craftr-text">Share location to serve you better</p>
+            <p className="mt-1 text-xs text-craftr-muted">
+              Optional. Helps us understand where customers are visiting from.
+            </p>
+            <button
+              type="button"
+              onClick={shareLocation}
+              disabled={locationBusy || !!sharedLocation}
+              className={cn(
+                "mt-3 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition disabled:opacity-60",
+                sharedLocation
+                  ? "border-craftr-success/40 bg-craftr-success/10 text-craftr-success"
+                  : "border-craftr-border bg-craftr-bg text-craftr-text hover:border-craftr-primary/50"
+              )}
+            >
+              {locationBusy ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Getting location…
+                </>
+              ) : sharedLocation ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Location shared
+                </>
+              ) : (
+                <>
+                  <MapPin className="h-4 w-4" />
+                  Share location to serve you better
+                </>
+              )}
+            </button>
+            {locationMessage ? (
+              <p
+                className={cn(
+                  "mt-2 text-xs",
+                  sharedLocation ? "text-craftr-success" : "text-craftr-muted"
+                )}
+              >
+                {locationMessage}
+              </p>
+            ) : null}
           </div>
         </section>
 

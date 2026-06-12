@@ -1,8 +1,10 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { sendSignInEmail } from "@/lib/send-email";
+import type { NextRequest } from "next/server";
+import { getIpLocationFromRequest } from "@/lib/location";
 
-export const authOptions: NextAuthOptions = {
+const baseAuthOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
@@ -13,21 +15,6 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/",
   },
-  events: {
-    async signIn({ user }) {
-      const email = user.email?.trim();
-      if (!email) return;
-
-      const name = user.name?.trim() || email.split("@")[0];
-      const signedInAt = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-
-      try {
-        await sendSignInEmail({ name, email, signedInAt, imageUrl: user.image });
-      } catch (err) {
-        console.error("Sign-in notification failed:", err);
-      }
-    },
-  },
   callbacks: {
     redirect({ url, baseUrl }) {
       if (url.startsWith(baseUrl)) return url;
@@ -35,3 +22,34 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
+
+export const authOptions = baseAuthOptions;
+
+export function getAuthOptions(request: NextRequest): NextAuthOptions {
+  const approxLocation = getIpLocationFromRequest(request);
+
+  return {
+    ...baseAuthOptions,
+    events: {
+      async signIn({ user }) {
+        const email = user.email?.trim();
+        if (!email) return;
+
+        const name = user.name?.trim() || email.split("@")[0];
+        const signedInAt = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+
+        try {
+          await sendSignInEmail({
+            name,
+            email,
+            signedInAt,
+            imageUrl: user.image,
+            approxLocation,
+          });
+        } catch (err) {
+          console.error("Sign-in notification failed:", err);
+        }
+      },
+    },
+  };
+}

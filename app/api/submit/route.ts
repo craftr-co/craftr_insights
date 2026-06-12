@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sendSubmissionEmail } from "@/lib/send-email";
+import { getIpLocationFromRequest, parseSharedLocation } from "@/lib/location";
 import type { SurveyPayload } from "@/lib/survey";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
 
@@ -41,6 +42,8 @@ export async function POST(request: Request) {
   }
 
   const name = session.user?.name ?? email.split("@")[0];
+  const sharedLocation = parseSharedLocation(body.shared_location);
+  const approxLocation = getIpLocationFromRequest(request);
 
   try {
     await sendSubmissionEmail({
@@ -48,6 +51,8 @@ export async function POST(request: Request) {
       email,
       imageUrl: session.user?.image,
       phone,
+      sharedLocation,
+      approxLocation,
       interests,
       giftHusband,
       giftBestFriend,
