@@ -22,7 +22,7 @@ export const authOptions: NextAuthOptions = {
       const signedInAt = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
 
       try {
-        await sendSignInEmail({ name, email, signedInAt });
+        await sendSignInEmail({ name, email, signedInAt, imageUrl: user.image });
       } catch (err) {
         console.error("Sign-in notification failed:", err);
       }

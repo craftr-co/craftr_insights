@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     await sendSubmissionEmail({
       name,
       email,
+      imageUrl: session.user?.image,
       phone,
       interests,
       giftHusband,
