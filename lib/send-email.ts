@@ -1,5 +1,33 @@
 import nodemailer from "nodemailer";
 
+function getMailConfig() {
+  const user = process.env.GMAIL_USER?.trim();
+  const pass = process.env.GMAIL_APP_PASSWORD?.trim();
+  const to = process.env.NOTIFY_EMAIL?.trim() || user;
+
+  if (!user || !pass) {
+    throw new Error("GMAIL_USER and GMAIL_APP_PASSWORD are required");
+  }
+  if (!to) {
+    throw new Error("NOTIFY_EMAIL or GMAIL_USER is required");
+  }
+
+  return {
+    to,
+    transporter: nodemailer.createTransport({
+      service: "gmail",
+      auth: { user, pass },
+    }),
+    from: `"Craftr Insights" <${user}>`,
+  };
+}
+
+type SignInEmail = {
+  name: string;
+  email: string;
+  signedInAt: string;
+};
+
 type SubmissionEmail = {
   name: string;
   email: string;
@@ -74,25 +102,59 @@ function buildHtml(data: SubmissionEmail) {
 </body></html>`;
 }
 
-export async function sendSubmissionEmail(data: SubmissionEmail) {
-  const user = process.env.GMAIL_USER?.trim();
-  const pass = process.env.GMAIL_APP_PASSWORD?.trim();
-  const to = process.env.NOTIFY_EMAIL?.trim() || user;
+function buildSignInText(data: SignInEmail) {
+  return [
+    "Someone just signed in to Craftr Insights",
+    "==========================================",
+    "",
+    `Signed in: ${data.signedInAt}`,
+    "",
+    `Name:  ${data.name}`,
+    `Email: ${data.email} (verified via Google)`,
+    "",
+    "They were redirected to the survey. If you do not receive a full survey",
+    "submission email shortly, they may have left before completing the form.",
+    "You can reply to this email to reach them directly.",
+  ].join("\n");
+}
 
-  if (!user || !pass) {
-    throw new Error("GMAIL_USER and GMAIL_APP_PASSWORD are required");
-  }
-  if (!to) {
-    throw new Error("NOTIFY_EMAIL or GMAIL_USER is required");
-  }
+function buildSignInHtml(data: SignInEmail) {
+  return `<!DOCTYPE html>
+<html><body style="font-family:system-ui,sans-serif;background:#f5f5f5;padding:24px">
+<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+  <div style="background:#FF6B35;padding:20px 24px">
+    <h1 style="margin:0;color:#fff;font-size:20px">New sign-in</h1>
+    <p style="margin:6px 0 0;color:rgba(255,255,255,.85);font-size:13px">Craftr Insights · ${data.signedInAt}</p>
+  </div>
+  <div style="padding:20px 24px;font-size:14px;color:#111;line-height:1.6">
+    <p style="margin:0 0 16px"><strong>${data.name}</strong> just signed in with Google and was sent to the survey.</p>
+    <p style="margin:0 0 8px"><span style="color:#666">Email:</span> ${data.email} <span style="color:#16a34a;font-size:12px">✓ verified</span></p>
+    <p style="margin:16px 0 0;padding:12px 14px;background:#fff7ed;border-radius:8px;color:#9a3412;font-size:13px">
+      If you do not get a full survey submission email, they may have left before finishing. Reply to reach them directly.
+    </p>
+  </div>
+</div>
+</body></html>`;
+}
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user, pass },
-  });
+export async function sendSignInEmail(data: SignInEmail) {
+  const { transporter, from, to } = getMailConfig();
 
   await transporter.sendMail({
-    from: `"Craftr Insights" <${user}>`,
+    from,
+    to,
+    replyTo: data.email,
+    subject: `[Craftr Insights] Sign-in: ${data.name}`,
+    text: buildSignInText(data),
+    html: buildSignInHtml(data),
+  });
+}
+
+export async function sendSubmissionEmail(data: SubmissionEmail) {
+  const { transporter, from, to } = getMailConfig();
+
+  await transporter.sendMail({
+    from,
     to,
     replyTo: data.email,
     subject: `[Craftr Insights] Survey from ${data.name}`,

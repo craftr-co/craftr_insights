@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { sendSignInEmail } from "@/lib/send-email";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,6 +12,21 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   pages: {
     signIn: "/",
+  },
+  events: {
+    async signIn({ user }) {
+      const email = user.email?.trim();
+      if (!email) return;
+
+      const name = user.name?.trim() || email.split("@")[0];
+      const signedInAt = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+
+      try {
+        await sendSignInEmail({ name, email, signedInAt });
+      } catch (err) {
+        console.error("Sign-in notification failed:", err);
+      }
+    },
   },
   callbacks: {
     redirect({ url, baseUrl }) {
